@@ -1252,6 +1252,7 @@ if(!/^\d+(\.\d+)*$/.test(v))return toast('Sürüm numarası 5.7 gibi olmalı');i
 M.upd=M.upd||{};Object.assign(M.upd,{pv:v,pn:notes,pu:link});sm();if(await pushGist({version:v,notes,url:link}))toast('Güncelleme yayınlandı ✓')};
 const publishAnn=async()=>{const t=($('uan').value||'').trim();if(!t)return toast('Duyuru metnini yaz');if(await pushGist({ann:{id:Date.now(),text:t}}))toast('Duyuru yayınlandı ✓')};
 const clearAnn=async()=>{if(await pushGist({ann:null}))toast('Duyuru kaldırıldı')};
+const saveTok=()=>{const v=(($('utok')&&$('utok').value)||'').trim();if(!v)return toast('Önce anahtarı yapıştır');M.upd=M.upd||{};M.upd.tok=v;sm();toast('GitHub anahtarı kaydedildi ✓');draw()};
 const siteCard=()=>{const U=M.upd||{};const inp=(id,ph,v)=>`<input id=${id} class=in style="width:100%;margin-top:4px" placeholder="${ph}" value="${E(v||'')}">`;return `<div class=card><h2>🚀 Uygulamayı Güncelle</h2><div class=mut>Yeni dosyayı seç, doğru uygulamaya yüklenir. Dosya tipi kendiliğinden kontrol edilir.</div>
 <div class=mut style="margin-top:8px"><b>Admin uygulaması</b></div>${inp('srepo','kullanici/admin-repo',U.repo)}${inp('spath','index.html',U.path||'index.html')}
 <div class=mut style="margin-top:8px"><b>Kullanıcı uygulaması</b></div>${inp('urepo','kullanici/kullanici-repo',U.urepo)}${inp('upath','index.html',U.upath||'index.html')}
@@ -1288,13 +1289,8 @@ try{set('Yükleniyor…');
 const adminCard=()=>{const u=M.upd||{},p=u.pub||{};return siteCard()+`<div class=card><h2>📣 Güncelleme ve Duyuru</h2><div class=mut>Sadece bu (yönetici) uygulamada görünür. Yayınladıkların kullanıcı uygulamalarında açılışta pop up olarak, uygulama açıkken Özet'in üstünde çıkar.</div>
 <div class=mut style="margin-top:10px"><b>Duyuru</b></div><textarea id=uan class=in style="width:100%;height:64px;margin-top:4px" placeholder="Duyuru metni">${E((p.ann&&p.ann.text)||'')}</textarea>
 <div class=row style="gap:8px;margin-top:6px"><button class=add onclick="publishAnn()">📢 Duyuruyu yayınla</button><button class=add onclick="clearAnn()">Kaldır</button></div>
-<div class=mut style="margin-top:12px"><b>Yeni sürüm</b></div>
-<input id=upv class=in style="width:100%;margin-top:4px" placeholder="Yeni sürüm numarası (ör. 5.7)" value="${E(u.pv||'')}">
-<textarea id=upn class=in style="width:100%;height:64px;margin-top:6px" placeholder="Yenilikler">${E(u.pn||'')}</textarea>
-<input id=upu class=in style="width:100%;margin-top:6px" placeholder="Drive indirme bağlantısı" value="${E(u.pu||'')}">
-<div class=mut style="font-size:11px;margin-top:4px">Drive indirme bağlantısını olduğu gibi yapıştır, kullanıcılara aynen gider.</div>
-<button class=add style="margin-top:8px" onclick="publishUpd()">📣 Güncellemeyi yayınla</button>
-<div class=mut style="margin-top:12px"><b>🤖 Asistan anahtarı (Gemini)</b></div><div class=mut style="font-size:11px">Kaydedince bu anahtar kullanıcı uygulamalarına da otomatik gider.</div><input id=aiadm type=password class=in style="width:100%;margin-top:4px" placeholder="AIza..." value="${E(aiKey())}"><button class=add style="margin-top:6px" onclick="aiPublishKey()">🤖 Anahtarı kaydet ve yayınla</button><div class=mut style="margin-top:12px"><b>GitHub anahtarı</b></div><input id=utok type=password class=in style="width:100%;margin-top:4px" placeholder="ghp_..." value="${E(gtok())}">
+
+<div class=mut style="margin-top:12px"><b>🤖 Asistan anahtarı (Gemini)</b></div><div class=mut style="font-size:11px">Kaydedince bu anahtar kullanıcı uygulamalarına da otomatik gider.</div><input id=aiadm type=password class=in style="width:100%;margin-top:4px" placeholder="AIza..." value="${E(aiKey())}"><button class=add style="margin-top:6px" onclick="aiPublishKey()">🤖 Anahtarı kaydet ve yayınla</button><div class=mut style="margin-top:12px"><b>GitHub anahtarı</b></div><input id=utok type=password class=in style="width:100%;margin-top:4px" placeholder="ghp_..." value="${E(gtok())}"><button class=add style="margin-top:6px" onclick="saveTok()">💾 Anahtarı kaydet</button>
 <div class=row style="gap:8px;margin-top:8px"><span class="mut n" style="word-break:break-all;font-size:11px">Kod: ${E(updUrl()||'(henüz yayınlanmadı)')}</span><button class=add style="width:auto;padding:4px 10px" onclick="copyTxt(updUrl())">📋</button></div></div>`};
 
 
