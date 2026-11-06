@@ -3,44 +3,67 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Uygulama Onarımı</title>
+<title>Güvenli Oturum Onarımı</title>
 </head>
-<body style="font-family:Arial;padding:25px;text-align:center">
-<h2>Uygulama bağlantısı onarılıyor</h2>
-<p id="durum">Service Worker kontrol ediliyor...</p>
+<body style="font-family:Arial;padding:22px;text-align:center">
+<h2>Güvenli oturum onarımı</h2>
+<p>Önce cihazdaki borç kayıtlarının kopyasını indir.</p>
+
+<button id="backup" style="padding:14px;margin:8px">
+Yerel verilerimi yedekle
+</button>
+
+<p id="durum"></p>
+
+<button id="reset" disabled style="padding:14px;margin:8px">
+Oturumu sıfırla
+</button>
 
 <script>
-(async function(){
-  const durum = document.getElementById('durum');
+const durum=document.getElementById('durum');
 
-  try {
-    if (!('serviceWorker' in navigator)) {
-      durum.textContent = 'Service Worker desteklenmiyor.';
-      return;
-    }
+document.getElementById('backup').onclick=()=>{
+  const data={
+    tarih:new Date().toISOString(),
+    butce_v3:localStorage.getItem('butce_v3'),
+    butce_meta:localStorage.getItem('butce_meta'),
+    butce_auto:localStorage.getItem('butce_auto'),
+    butce_auto_prev:localStorage.getItem('butce_auto_prev')
+  };
 
-    const kayitlar = await navigator.serviceWorker.getRegistrations();
-
-    for (const kayit of kayitlar) {
-      await kayit.unregister();
-    }
-
-    durum.textContent = 'Eski uygulama bağlantısı kaldırıldı. Ana uygulamaya geçebilirsiniz.';
-
-    const btn = document.createElement('button');
-    btn.textContent = 'Admin uygulamasını aç';
-    btn.style.padding = '14px 22px';
-    btn.style.marginTop = '20px';
-    btn.onclick = function(){
-      location.href = '/?yenile=' + Date.now();
-    };
-
-    document.body.appendChild(btn);
-
-  } catch (e) {
-    durum.textContent = 'Hata: ' + e.message;
+  if(!data.butce_v3){
+    durum.textContent='Yerel borç verisi bulunamadı. İşlem durduruldu.';
+    return;
   }
-})();
+
+  const blob=new Blob(
+    [JSON.stringify(data,null,2)],
+    {type:'application/json'}
+  );
+
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='borc-takip-yerel-guvence.json';
+  a.click();
+  URL.revokeObjectURL(url);
+
+  durum.textContent='Yedek indirme başlatıldı. Dosyanın telefona indiğini kontrol et.';
+  document.getElementById('reset').disabled=false;
+};
+
+document.getElementById('reset').onclick=()=>{
+  if(!confirm('Yalnızca bulut oturumu sıfırlanacak. Devam edilsin mi?'))return;
+
+  [
+    'bt_cloud_token',
+    'bt_cloud_user',
+    'bt_cloud_enc_key'
+  ].forEach(k=>localStorage.removeItem(k));
+
+  durum.textContent='Oturum bilgileri sıfırlandı. Borç kayıtlarına dokunulmadı.';
+  document.getElementById('reset').disabled=true;
+};
 </script>
 </body>
 </html>
