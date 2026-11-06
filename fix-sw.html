@@ -1,1 +1,46 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Uygulama Onarımı</title>
+</head>
+<body style="font-family:Arial;padding:25px;text-align:center">
+<h2>Uygulama bağlantısı onarılıyor</h2>
+<p id="durum">Service Worker kontrol ediliyor...</p>
 
+<script>
+(async function(){
+  const durum = document.getElementById('durum');
+
+  try {
+    if (!('serviceWorker' in navigator)) {
+      durum.textContent = 'Service Worker desteklenmiyor.';
+      return;
+    }
+
+    const kayitlar = await navigator.serviceWorker.getRegistrations();
+
+    for (const kayit of kayitlar) {
+      await kayit.unregister();
+    }
+
+    durum.textContent = 'Eski uygulama bağlantısı kaldırıldı. Ana uygulamaya geçebilirsiniz.';
+
+    const btn = document.createElement('button');
+    btn.textContent = 'Admin uygulamasını aç';
+    btn.style.padding = '14px 22px';
+    btn.style.marginTop = '20px';
+    btn.onclick = function(){
+      location.href = '/?yenile=' + Date.now();
+    };
+
+    document.body.appendChild(btn);
+
+  } catch (e) {
+    durum.textContent = 'Hata: ' + e.message;
+  }
+})();
+</script>
+</body>
+</html>
