@@ -1367,7 +1367,13 @@ try{set('Yükleniyor…');
  if(!pr.ok)throw new Error('PUT '+pr.status);
  if(adm){set('Admin uygulaması yüklendi ✓ (bir iki dakikada yayınlanır)');toast('Admin güncellendi ✓');return}
  set('Kullanıcı dosyası yüklendi, bildirim gönderiliyor…');
- if(await pushGist({version:mv[1],notes:notes.trim()})){set('Yayınlandı ✓ v'+mv[1]);toast('Kullanıcılara bildirildi ✓')}
+ const sent=await pushGist({version:mv[1],notes:notes.trim()});
+if(sent){
+  set('Yayınlandı ✓ v'+mv[1]);
+  toast('Kullanıcılara bildirildi ✓');
+}else{
+  set('Dosya GitHub’a yüklendi ancak bildirim gönderilemedi. Hata mesajını kontrol et.');
+}
 }catch(e){const c=String(e.message);set(/401|403/.test(c)?'Anahtar yetkisi yok: token için repo (contents) izni gerekli':'Yüklenemedi: '+c);toast('Yüklenemedi')}};
 const adminCard=()=>{const u=M.upd||{},p=u.pub||{};return siteCard()+`<div class=card><h2>📣 Güncelleme ve Duyuru</h2><div class=mut>Sadece bu (yönetici) uygulamada görünür. Yayınladıkların kullanıcı uygulamalarında açılışta pop up olarak, uygulama açıkken Özet'in üstünde çıkar.</div>
 <div class=mut style="margin-top:10px"><b>Duyuru</b></div><textarea id=uan class=in style="width:100%;height:64px;margin-top:4px" placeholder="Duyuru metni">${E((p.ann&&p.ann.text)||'')}</textarea>
