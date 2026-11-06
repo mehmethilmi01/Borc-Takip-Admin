@@ -1197,21 +1197,7 @@ const setFx=(u,v)=>{M.rates=M.rates||{};M.rates[u]=+String(v).replace(',','.')||
 const nmb=v=>{if(typeof v=='number')return v;let t=String(v==null?'':v).trim();if(t.includes(','))t=t.replace(/\./g,'').replace(',','.');return parseFloat(t)||0};
 const getSel=o=>o?nmb(o.Selling!=null?o.Selling:(o['Satış']!=null?o['Satış']:o.selling)):0;
 const TRK={USD:['USD','ABD DOLARI'],EUR:['EUR','EURO'],GBP:['GBP','İNGİLİZ STERLİNİ'],GRA:['GRA','gram-altin','GRAM ALTIN'],CEY:['CEYREKALTIN','ceyrek-altin','ÇEYREK ALTIN'],YAR:['YARIMALTIN','yarim-altin','YARIM ALTIN'],TAM:['TAMALTIN','tam-altin','TAM ALTIN'],GUM:['GUMUS','gumus','GÜMÜŞ']};
-const fetchJ=async(u,ms)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),ms||9000);try{const r=await fetch(u,{signal:c.signal,cache:'no-store'});if(!r.ok){
-  const detail=await r.text();
-  throw new Error('GitHub Gist API '+r.status+': '+detail);
-}
-const j=await r.json();
-M.upd.url=j.id;
-M.upd.pub=obj;
-sm();
-draw();
-return true;
-}catch(e){
-  console.error('Gist yayınlama hatası:',e);
-  toast('Yayınlanamadı: '+(e.message||'Bilinmeyen hata'));
-  return false;
-}return await r.json()}finally{clearTimeout(t)}};
+const fetchJ=async(u,ms)=>{const c=new AbortController(),t=setTimeout(()=>c.abort(),ms||9000);try{const r=await fetch(u,{signal:c.signal,cache:'no-store'});if(!r.ok)throw 0;return await r.json()}finally{clearTimeout(t)}};
 let RRUN=false;
 const refreshRates=async manual=>{if(RRUN)return;RRUN=true;const r={};
 try{const d=await fetchJ('https://finans.truncgil.com/v4/today.json');Object.keys(TRK).forEach(k=>{for(const key of TRK[k]){const v=getSel(d[key]);if(v>0){r[k]=v;break}}})}catch(e){}
