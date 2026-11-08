@@ -2135,6 +2135,7 @@ const aiCallGemini=async msgs=>{const up=t=>String(t).toUpperCase();
    const modelErr=lastSt==404||(lastSt==400&&/model/i.test(lastErr))||[429,500,503].includes(lastSt);
    if(!modelErr)break}
   throw new Error(lastErr||'yanıt alınamadı')};
+ let prevG=[];
  for(let step=0;step<5;step++){
   const j=await callOnce(mkBody());
   const cand=(j.candidates||[])[0]||{};const parts=(cand.content&&cand.content.parts)||[];
@@ -2146,7 +2147,14 @@ const aiCallGemini=async msgs=>{const up=t=>String(t).toUpperCase();
    contents.push({role:'model',parts:parts});
    contents.push({role:'user',parts:reads.map(p=>{let res;try{res=aiReadExec[p.functionCall.name](p.functionCall.args||{})}catch(e){res={hata:e.message}};return {functionResponse:{name:p.functionCall.name,response:{sonuc:res}}}})});
    continue}
-  return {content:parts.map(p=>p.functionCall?{type:'tool_use',name:p.functionCall.name,input:p.functionCall.args||{}}:{type:'text',text:p.text||''}).filter(b=>b.type=='tool_use'||b.text)}}
+  const wantG=aiWantCount(contents.map(c=>({content:(c.parts||[]).map(p=>p.text||'').join('')})));
+  if(wantG>prevG.length+acts.length&&acts.length&&step<4){
+   contents.push({role:'model',parts:parts});
+   prevG=prevG.concat(acts);
+   contents.push({role:'user',parts:acts.map(p=>({functionResponse:{name:p.functionCall.name,response:{sonuc:'kaydedildi'}}})).concat([{text:'Kullanıcı toplam '+wantG+' ayrı işlem istedi, şu ana kadar '+prevG.length+' tane ürettin. Kalan '+(wantG-prevG.length)+' işlemi de şimdi ayrı add_* çağrıları olarak üret.'}])});
+   continue}
+  const allG=prevG.concat(acts);
+  return {content:allG.map(p=>({type:'tool_use',name:p.functionCall.name,input:p.functionCall.args||{}})).concat(parts.filter(p=>p.text).map(p=>({type:'text',text:p.text||''}))).filter(b=>b.type=='tool_use'||b.text)}}
  return {content:[{type:'text',text:'Bu soru çok fazla veri gerektiriyor. Daha dar bir tarih aralığıyla sorabilir misin?'}]}};
 const aiPublishKey=async()=>{const k=($('aiadm').value||'').trim();if(k.length<20)return toast('Geçerli bir anahtar gir');try{localStorage.setItem('butce_ai_key',k)}catch(e){}if(await pushGist({ai_key:k}))toast('Asistan anahtarı yayınlandı ✓')};
 
@@ -2393,10 +2401,12 @@ const aiReadExec={
 };
 const aiGroqSummary=()=>({bugun:iso(bt0),ozet:aiOzet(),aylar:S.m.map((m,i)=>({ay:ymOf(i),maas:m.w.reduce((s,w)=>s+(+w[1]||0),0),kalan_odeme:mkW(m)})).filter(x=>x.maas||x.kalan_odeme),
  not:'Ayrıntı gerekiyorsa get_weeks, get_expenses, get_debts, search_payments, get_history araçlarını kullan. Tarihler YYYY-MM-DD.'});
+const aiWantCount=oa=>{for(let i=oa.length-1;i>=0;i--){const c=String(oa[i].content||'');if(c.indexOf('SORU: ')<0)continue;const q=c.slice(c.indexOf('SORU: ')+6);const m=/(\d+)\s*(tane|adet|kalem|işlem|harcama|ödeme|borç|taksit|ayrı)/i.exec(q);const n=m?+m[1]:0;return n>=2&&n<=10?n:0}return 0};
 const aiCallGroq=async msgs=>{
  const chain=await aiGroqChain();
  const tools=AI_READ_TOOLS.concat(AI_TOOLS.map(t=>({type:'function',function:{name:t.name,description:t.description,parameters:t.input_schema}})));
  const oa=[{role:'system',content:aiSystem()}].concat(msgs.map(m=>({role:m.role,content:m.content})));
+ let prev=[];
  for(let step=0;step<4;step++){
   let msg=null,lastErr='',firstErr=null;
   for(const mdl of chain){
@@ -2415,8 +2425,16 @@ const aiCallGroq=async msgs=>{
    reads.forEach(tc=>{let res;try{res=aiReadExec[tc.function.name](JSON.parse(tc.function.arguments||'{}'))}catch(e){res={hata:e.message}}
      oa.push({role:'tool',tool_call_id:tc.id,content:JSON.stringify(res).slice(0,6000)})});
    continue}
+  const want=aiWantCount(oa);
+  if(want>prev.length+acts.length&&acts.length&&step<3){
+   oa.push({role:'assistant',content:msg.content||'',tool_calls:acts});
+   acts.forEach(tc=>oa.push({role:'tool',tool_call_id:tc.id,content:'kaydedildi'}));
+   prev=prev.concat(acts);
+   oa.push({role:'user',content:'Kullanıcı toplam '+want+' ayrı işlem istedi, şu ana kadar '+prev.length+' tane ürettin. Kalan '+(want-prev.length)+' işlemi de şimdi ayrı add_* çağrıları olarak üret.'});
+   continue}
+  const all=prev.concat(acts);
   const content=[];if(msg.content)content.push({type:'text',text:msg.content});
-  acts.forEach(tc=>{let input={};try{input=JSON.parse(tc.function.arguments||'{}')}catch(e){}content.push({type:'tool_use',name:tc.function.name,input})});
+  all.forEach(tc=>{let input={};try{input=JSON.parse(tc.function.arguments||'{}')}catch(e){}content.push({type:'tool_use',name:tc.function.name,input})});
   return {content}}
  return {content:[{type:'text',text:'Bu soru çok fazla veri gerektiriyor. Daha dar bir tarih aralığı ya da daha kısa bir soru dener misin?'}]}};
 
