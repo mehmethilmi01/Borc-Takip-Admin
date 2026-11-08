@@ -196,8 +196,8 @@ function akCalBody(){
 function akDonut(obj,onc){const en=Object.entries(obj).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]);const tt=en.reduce((s,e)=>s+e[1],0);
  if(!tt)return '<div class=empty>Veri yok</div>';
  const C=2*Math.PI*44;let off=0;
- const seg=en.map((e,i)=>{const len=e[1]/tt*C;const el=`<circle r="44" cx="55" cy="55" fill="none" stroke="${AK_PAL[i%AK_PAL.length]}" stroke-width="14" stroke-dasharray="${len} ${C}" stroke-dashoffset="${-off}" transform="rotate(-90 55 55)"/>`;off+=len;return el}).join('');
- const legend=en.map((e,i)=>`<div style="${onc?'cursor:pointer':''}" ${onc?`onclick="${onc(e[0])}"`:''}><i style="background:${AK_PAL[i%AK_PAL.length]}"></i>${E(e[0])}<b class=num>%${Math.round(e[1]/tt*100)}${onc?' ›':''}</b></div>`).join('');
+ const seg=en.map((e,i)=>{const frac=e[1]/tt,len=frac*C,mid=(off+len/2)/C*2*Math.PI-Math.PI/2;const px=55+44*Math.cos(mid),py=55+44*Math.sin(mid);const el=`<circle r="44" cx="55" cy="55" fill="none" stroke="${AK_PAL[i%AK_PAL.length]}" stroke-width="14" stroke-dasharray="${len} ${C}" stroke-dashoffset="${-off}" transform="rotate(-90 55 55)"/>`+(frac>=0.05?`<text x="${px.toFixed(1)}" y="${(py+3).toFixed(1)}" text-anchor="middle" font-size="9" font-weight="700" fill="#fff" stroke="rgba(0,0,0,.35)" stroke-width="2" paint-order="stroke">%${Math.round(frac*100)}</text>`:'');off+=len;return el}).join('');
+ const legend=en.map((e,i)=>`<div style="${onc?'cursor:pointer':''}" ${onc?`onclick="${onc(e[0])}"`:''}><i style="background:${AK_PAL[i%AK_PAL.length]}"></i>${E(e[0])}<b class=num>${F(e[1])}${onc?' ›':''}</b></div>`).join('');
  return `<div class=donut-wrap><svg width="120" height="120" viewBox="0 0 110 110">${seg}<text x="55" y="52" text-anchor="middle" font-size="11" fill="var(--mut)">Toplam</text><text x="55" y="68" text-anchor="middle" font-size="13" font-weight="700" fill="var(--ink)">${F(tt)}</text></svg><div class=legend>${legend}</div></div>`}
 function akBarsSvg(vals,labs,onc){const mx=Math.max(1,...vals),W=300,H=120,bw=30,gap=(W-bw*vals.length)/Math.max(1,vals.length-1);
  return `<svg viewBox="0 0 ${W} ${H+20}" width="100%">${vals.map((v,i)=>{const h=v/mx*H,x=vals.length>1?i*(bw+gap):(W-bw)/2;return `<g ${onc?`style="cursor:pointer" onclick="${onc(i)}"`:''}><rect x="${x}" y="${H-h}" width="${bw}" height="${Math.max(h,2)}" rx="9" fill="${i==vals.length-1?'var(--accent)':'var(--line)'}"/><text x="${x+bw/2}" y="${H+15}" text-anchor="middle" font-size="10" fill="var(--mut)">${labs[i]}</text></g>`}).join('')}</svg>`}
@@ -249,7 +249,7 @@ function akExpBody(){
  if(path.length){
   const v=path[path.length-1],r=akRangeOfView(v),kids=akChildren(v);
   const back=`<div class=sect><button class=link onclick="akPop()">‹ Geri</button><h2>${E(r[2])}</h2></div>`;
-  const kidsH=kids.length?`<div class=list>${kids.map(k=>`<div class=row onclick="akPush(${Q(JSON.stringify(k.v))})"><div class=meta><div class=nm>${E(k.lbl)}</div></div><div class="amt num">${F(k.amt)}</div></div>`).join('')}</div>`:'';
+  const kidsH=kids.length?`<div class=list>${kids.map(k=>`<div class=row onclick="akPush(${Q(JSON.stringify(k.v))})"><div class=meta><div class=nm>${E(k.lbl)}${k.v.mode=='d'?curTag(k.v.d,k.v.d):curTag(k.v.s,k.v.e)}</div></div><div class="amt num">${F(k.amt)}</div></div>`).join('')}</div>`:'';
   return per+back+akExpBlock(akRangeEx([r[0],r[1]]),'Harcamalar')+kidsH}
  const rg=rng(gp),list=akRangeEx(rg);
  let extra='';
@@ -259,9 +259,10 @@ function akExpBody(){
   extra=`<div class=sect><h2>Son 6 ay</h2><span class=mut>dokun, aç</span></div><div class=card>${akBarsSvg(vals,labs,i=>`akPush(${Q(JSON.stringify({mode:'m',k:ks[i]}))})`)}</div>`;
  }
  if(gp=='h'){const ym=iso(bt0).slice(0,7);
-  extra=`<div class=sect><h2>Bu ayın haftaları</h2></div><div class=list>${weeksOfMonth(ym).map(([s,e])=>`<div class=row onclick="akPush(${Q(JSON.stringify({mode:'w',s,e}))})"><div class=meta><div class=nm>${wkLabel(s,e)}</div></div><div class="amt num">${F(sumR(s,e))}</div></div>`).join('')}</div>`}
+  extra=`<div class=sect><h2>Bu ayın haftaları</h2></div><div class=list>${weeksOfMonth(ym).map(([s,e])=>`<div class=row onclick="akPush(${Q(JSON.stringify({mode:'w',s,e}))})"><div class=meta><div class=nm>${wkLabel(s,e)}${curTag(s,e)}</div></div><div class="amt num">${F(sumR(s,e))}</div></div>`).join('')}</div>`}
  if(gp=='g'){const wk=rng('h');
-  extra=`<div class=sect><h2>Bu haftanın günleri</h2></div><div class=list>${weekDaysList(wk[0],wk[1]).map(d=>`<div class=row onclick="akPush(${Q(JSON.stringify({mode:'d',d}))})"><div class=meta><div class=nm>${fd(new Date(d+'T00:00'))}</div></div><div class="amt num">${F(daySum(d))}</div></div>`).join('')}</div>`}
+  extra=`<div class=sect><h2>Bu haftanın günleri</h2></div><div class=list>${weekDaysList(wk[0],wk[1]).map(d=>`<div class=row onclick="akPush(${Q(JSON.stringify({mode:'d',d}))})"><div class=meta><div class=nm>${fd(new Date(d+'T00:00'))}${curTag(d,d)}</div></div><div class="amt num">${F(daySum(d))}</div></div>`).join('')}</div>`}
+ if(gp=='a'){const ms=monthsWithEx();extra+=`<div class=sect><h2>Aylar</h2></div><div class=list>${ms.map(([k])=>{const r=rngOfMonth(k);return `<div class=row onclick="akPush(${Q(JSON.stringify({mode:'m',k}))})"><div class=meta><div class=nm>${monthLbl(k)}${curTag(r[0],r[1])}</div></div><div class="amt num">${F(sumR(r[0],r[1]))}</div></div>`}).join('')||'<div class=empty>Henüz harcama yok</div>'}</div>`}
  return per+akExpBlock(list,gp=='g'?'Bugün':gp=='h'?'Bu hafta':'Bu ay')+extra}
 
 /* gelir ↔ ödeme: 12 ay (2 geri, 11 ileri) */
@@ -433,7 +434,7 @@ function akSetBody(){
   ${adm?'<button class=ak-r2 onclick="openAdminUsers()"><span>👥 Kullanıcılar</span></button><button class=ak-r2 onclick="goSet(\'Uygulamayı Güncelle\')"><span>🚀 Uygulamayı güncelle</span></button>':''}
   <button class=ak-r2 onclick="clr()"><span style="color:var(--bad)">Tüm verileri temizle</span></button>
  </div></div>`}
-const KEY='butce_v3';const VER='6.68';
+const KEY='butce_v3';const VER='6.69';
 try{['butce_pre_update','butce_pre_ver','butce_auto_prev','butce_ver'].forEach(k=>localStorage.removeItem(k))}catch(e){}
 let CATC=['#1f6f5c','#c9752f','#7d5ba6','#b4402f','#2f6fb4','#a3852f','#5fae8c','#c94f7c','#4f8fc9','#8c6f4f'];
 let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
@@ -728,7 +729,7 @@ return h}
 const donutHTML=(dat,rg,sf,sv)=>{const clk=rg?'selGCat':sf,cs=rg?gCatSel:sv;const list=S.dcats.concat(S.cats),entries=Object.entries(dat).filter(x=>x[1]>0).sort((a,b)=>b[1]-a[1]),total=entries.reduce((s,e)=>s+e[1],0);
 let acc=0,stops=entries.map((e,i)=>{const pct=total?e[1]/total*100:0,s=`${CATC[list.indexOf(e[0])>=0?list.indexOf(e[0])%CATC.length:i%CATC.length]} ${acc}% ${acc+pct}%`;acc+=pct;return s}).join(',');
 return `<div class=card>${entries.length?`<div class=donut style="background:conic-gradient(${stops})"></div>`:'<div class=mut style="text-align:center;padding:20px 0">Veri yok</div>'}
-${entries.map((e,i)=>`<div class=row ${clk?`style="cursor:pointer;${cs==e[0]?'background:var(--ok);border-radius:8px;padding:4px 6px':''}" onclick="${clk}('${encodeURIComponent(e[0])}')"`:''}><span><i class=dot style="background:${CATC[list.indexOf(e[0])>=0?list.indexOf(e[0])%CATC.length:i%CATC.length]}"></i>${e[0]}${clk?' ›':''}</span><span class=n>${F(e[1])} · %${total?Math.round(e[1]/total*100):0}</span></div>`).join('')}</div>`};
+${entries.map((e,i)=>`<div class=row ${clk?`style="cursor:pointer;${cs==e[0]?'background:var(--ok);border-radius:8px;padding:4px 6px':''}" onclick="${clk}('${encodeURIComponent(e[0])}')"`:''}><span><i class=dot style="background:${CATC[list.indexOf(e[0])>=0?list.indexOf(e[0])%CATC.length:i%CATC.length]}"></i>${e[0]}${clk?' ›':''}</span><span class=n>${F(e[1])}</span></div>`).join('')}</div>`};
 const exCatMap=list=>{const m={};list.forEach(e=>m[e.c]=(m[e.c]||0)+e.a);return m};
 const selGCat=k=>{const c=decodeURIComponent(k);gCatSel=gCatSel==c?null:c;gSubSel=null;draw()};
 const gGo=o=>{o.par=gView;gView=o;gCatSel=null;draw(1)};
@@ -758,9 +759,9 @@ S.m.forEach(m=>m.w.forEach(w=>w[2].forEach(p=>{const f=p[10];if(!f||p[3])return;
 S.debts.forEach(d=>{if(!d.fx||d.paid||!d.amount)return;const u=g[d.fx.u]=g[d.fx.u]||{q:0,t:0,it:{}};u.q+=d.fx.q;u.t+=+d.amount;const k=(d.cat||'')+'|'+d.name;const it=u.it[k]=u.it[k]||{n:d.name,c:d.cat,q:0,t:0};it.q+=d.fx.q;it.t+=+d.amount});const ks=Object.keys(g);if(!ks.length)return'';const tt=ks.reduce((s,u)=>s+g[u].t,0);
 return `<div class=card><h2>💱 Döviz · Altın · Gümüş Borçları</h2>${ks.map(u=>`<div style="margin:8px 0"><div class=row><b>${fxLbl(u,g[u].q)}</b><b class=n>${F(g[u].t)}</b></div><div class=mut style="font-size:11px">kur ${fxRate(u)?F2(fxRate(u))+' ₺':'yok'}</div>${Object.values(g[u].it).sort((a,b)=>b.t-a.t).map(i=>`<div class=row style="padding:2px 0 2px 10px"><span class=mut>↳ ${i.c} · ${E(i.n)} <span class=n>${(+i.q).toLocaleString('tr-TR',{maximumFractionDigits:3})} ${FXU[u][1]}</span></span><span class=n>${F(i.t)}</span></div>`).join('')}</div>`).join('')}<div class="row tot"><span>Toplam (TL karşılığı)</span><span class=n>${F(tt)}</span></div></div>`};
 function grafik(){
-let h=`<h1>Grafik</h1><div class=chips><button class="chip ${gcat=='b'?'on':''}" onclick="gcat='b';gView=null;gCatSel=null;draw()">Borç dağılımı</button><button class="chip ${gcat=='e'?'on':''}" onclick="gcat='e';gView=null;gCatSel=null;draw()">Harcama dağılımı</button><button class="chip ${gcat=='i'?'on':''}" onclick="gcat='i';gView=null;gCatSel=null;draw()">Gelir ↔ Ödeme</button><button class="chip ${gcat=='f'?'on':''}" onclick="gcat='f';gView=null;gCatSel=null;draw()">Döviz gidişatı</button></div>`;
+let h=`<h1>Grafik</h1><div class=chips><button class="chip ${gcat=='b'?'on':''}" onclick="gcat='b';gView=null;gCatSel=null;draw()">Borç dağılımı</button><button class="chip ${gcat=='e'?'on':''}" onclick="gcat='e';gView=null;gCatSel=null;draw()">Harcama dağılımı</button><button class="chip ${gcat=='f'?'on':''}" onclick="gcat='f';gView=null;gCatSel=null;draw()">Döviz gidişatı</button></div>`;
 if(gcat=='f')return h+fxTrendCard();
-if(gcat=='i')return h+incomeCard();
+
 if(gcat=='b'){const dg={};S.m.forEach(m=>m.w.forEach(w=>w[2].forEach(p=>{if(!p[2]||remOf(p)<=0)return;const c=p[5]||'📌 Diğer';dg[c]=(dg[c]||0)+remOf(p)})));
 S.debts.forEach(d=>{if(!d.paid&&d.amount)dg[d.cat]=(dg[d.cat]||0)+ +d.amount});
 return h+donutHTML(dg,null,'selBCat',gBCat)+bCatDetail()+fxBreak()}
@@ -2495,7 +2496,7 @@ const dSvg=(entries,center)=>{const tot=entries.reduce((s,e)=>s+e[1],0);if(!tot)
  const R=58,C=2*Math.PI*R;let acc=0;
  const segs=entries.map((e,i)=>{const len=e[1]/tot*C,off=acc;acc+=len;return `<circle r="${R}" cx="80" cy="80" fill="none" stroke="${DCOL[i%DCOL.length]}" stroke-width="18" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 80 80)"/>`}).join('');
  return `<svg viewBox="0 0 160 160" width="150" height="150">${segs}<text x="80" y="76" text-anchor="middle" font-size="11" fill="var(--mut)">${center[0]}</text><text x="80" y="96" text-anchor="middle" font-family="Georgia,serif" font-size="15" fill="var(--ink)">${center[1]}</text></svg>`};
-const dLegend=(entries,tot,onc)=>entries.map((e,i)=>`<div class=legrow ${onc?`onclick="${onc(e[0])}"`:''}><span><i class=dot style="background:${DCOL[i%DCOL.length]}"></i>${E(e[0])}</span><span class=amt>${F(e[1])} <span class=mut>%${tot?Math.round(e[1]/tot*100):0}</span></span></div>`).join('');
+const dLegend=(entries,tot,onc)=>entries.map((e,i)=>`<div class=legrow ${onc?`onclick="${onc(e[0])}"`:''}><span><i class=dot style="background:${DCOL[i%DCOL.length]}"></i>${E(e[0])}</span><span class=amt>${F(e[1])}</span></div>`).join('');
 function ayDefter(){
  const m=S.m[cur];
  const inc=m.w.reduce((s,w)=>s+(+w[1]||0),0),left=mkW(m),all=mtotW(m),paid=all-left;
