@@ -417,8 +417,21 @@ const MOTO_SIG_PROMPT='Bu sigorta poliçesinden şu alanları JSON olarak çıka
 const MOTO_GROQ_VISION='meta-llama/llama-4-scout-17b-16e-instruct';
 const motoSigPdfText=async f=>{if(!window.pdfjsLib){await new Promise((res,rej)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';sc.onload=res;sc.onerror=rej;document.head.appendChild(sc)});window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'}const pdf=await window.pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;let out='';for(let p=1;p<=Math.min(pdf.numPages,5);p++){const pg=await pdf.getPage(p);const tc=await pg.getTextContent();out+=tc.items.map(t=>t.str).join(' ')+'\n'}return out.trim()};
 const motoSigFill=x=>{const set=(id,v)=>{if(v)document.getElementById(id).value=v};set('sgS',x.sirket);set('sgB',x.bas);set('sgE',x.bit);set('sgN',x.no)};
+const motoSigLocal=t=>{const out={sirket:'',bas:'',bit:'',no:''};const norm=t.replace(/\s+/g,' ');
+const toIso=(d,m,y)=>y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+const dre=()=>/(\d{2})[.\/-](\d{2})[.\/-](\d{4})|(\d{4})-(\d{2})-(\d{2})/g;
+const iso1=m=>m[4]?toIso(+m[6],+m[5],+m[4]):toIso(+m[1],+m[2],+m[3]);
+const grab=re=>{const m=re.exec(norm);if(!m)return '';const seg=norm.slice(m.index+m[0].length,m.index+m[0].length+60);const d=dre().exec(seg);return d?iso1(d):''};
+out.bas=grab(/ba[şs]lang[ıi][çc][^\s:]*\s*(tarihi)?\s*[:\-]?/i);
+out.bit=grab(/biti[şs][^\s:]*\s*(tarihi)?\s*[:\-]?/i);
+if(!out.bas||!out.bit){const all=[];let m;const r=dre();while((m=r.exec(norm)))all.push(iso1(m));all.sort();if(all.length>=2){out.bas=out.bas||all[0];out.bit=out.bit||all[all.length-1]}}
+const ins=['allianz','axa','anadolu','ak sigorta','aksigorta','mapfre','groupama','zurich','eureko','sompo','hdi','unico','ray sigorta','generali','neova','quick sigorta','bereket','corpus','türkiye sigorta','koç','gulf','ergo'];
+const low=norm.toLowerCase();const hit=ins.find(k=>low.includes(k));
+if(hit)out.sirket=hit.replace(/\b\w/g,c=>c.toUpperCase());
+const pm=/poli[çc]e\s*(no|numaras[ıi])\s*[:.]?\s*([A-Za-z0-9\-\/]{5,})/i.exec(norm);if(pm)out.no=pm[2];
+return out};
 const motoSigRead=async inp=>{const f=inp.files[0];if(!f)return;const msg=document.getElementById('sgMsg');const key=aiKey();if(!key){msg.textContent='Otomatik okuma için Groq veya Gemini anahtarı gerekli; bilgileri elle gir.';return}msg.textContent='Poliçe okunuyor…';
- try{const isPdf=/pdf/i.test(f.type)||/\.pdf$/i.test(f.name);let x;
+ try{const isPdf=/pdf/i.test(f.type)||/\.pdf$/i.test(f.name);let x;if(isPdf){const text=await motoSigPdfText(f);if(text.length<30)throw new Error('PDF metni okunamadı, taranmış olabilir');motoSigFill(motoSigLocal(text));msg.textContent='PDF okundu, bilgileri kontrol edip kaydet.';return}
   if(aiIsGroq()){
    let body;
    if(isPdf){const text=await motoSigPdfText(f);if(text.length<30)throw new Error('PDF metni okunamadı, taranmış olabilir');body={model:(await aiGroqChain())[0],messages:[{role:'user',content:MOTO_SIG_PROMPT+'\n\nPOLİÇE METNİ:\n'+text.slice(0,12000)}],response_format:{type:'json_object'}}}
