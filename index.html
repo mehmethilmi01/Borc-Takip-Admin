@@ -1820,6 +1820,11 @@ const siteCard=()=>{const U=M.upd||{};const inp=(id,ph,v)=>`<input id=${id} onin
 
 <div id=sitemsg class=mut style="margin-top:6px;font-size:12px"></div></div>`};
 const sitePersist=el=>{M.upd=M.upd||{};const k={srepo:'repo',spath:'path',urepo:'urepo',upath:'upath',gtok2:'gtok'}[el.id];if(k){M.upd[k]=el.value.trim();sm()}};
+let upAbort=null;
+const upShow=()=>{let b=document.getElementById('upbar');if(!b){const sm=document.getElementById('sitemsg');if(!sm||!sm.parentNode)return null;b=document.createElement('div');b.id='upbar';b.style.cssText='margin:10px 0';b.innerHTML='<div style="height:10px;border-radius:6px;background:var(--line);overflow:hidden"><div id="upfill" style="height:100%;width:0;background:var(--acc);transition:width .2s"></div></div><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><span id="uptx" class="mut" style="font-size:12px"></span><button class="add" id="upcancel" style="padding:4px 12px">İptal</button></div>';sm.parentNode.insertBefore(b,sm)}b.style.display='block';document.getElementById('upcancel').onclick=()=>{if(upAbort)upAbort.abort()};return b};
+const upSet=(p,t)=>{const f=document.getElementById('upfill'),x=document.getElementById('uptx');if(f)f.style.width=Math.max(0,Math.min(100,p))+'%';if(x)x.textContent=t||''};
+const upHide=()=>{const b=document.getElementById('upbar');if(b)b.style.display='none'};
+const xhrPut=(url,headers,body,onp)=>new Promise((res,rej)=>{const x=new XMLHttpRequest();upAbort={abort:()=>x.abort()};x.open('PUT',url);for(const k in headers)x.setRequestHeader(k,headers[k]);x.upload.onprogress=e=>{if(e.lengthComputable)onp(e.loaded/e.total)};x.onload=()=>res({status:x.status,ok:x.status>=200&&x.status<300,text:()=>Promise.resolve(x.responseText)});x.onerror=()=>rej(new Error('ağ hatası'));x.onabort=()=>rej(new Error('iptal'));x.send(body)});
 const siteUpload=async(inp,who)=>{const f=inp.files&&inp.files[0];inp.value='';if(!f)return;
 const g=id=>((document.getElementById(id)||{}).value||'').trim();
 const adm=who=='admin';
@@ -1835,24 +1840,24 @@ const api='https://api.github.com/repos/'+repo+'/contents/'+path.split('/').map(
 const utk=((document.getElementById('utok')||{}).value||'').trim();if(utk){M.upd=M.upd||{};M.upd.tok=utk;sm()}
 const H={Authorization:'Bearer '+gtok(),Accept:'application/vnd.github+json','Content-Type':'application/json'};
 const set=t=>{const e=document.getElementById('sitemsg');if(e)e.textContent=t};
-try{set('Yükleniyor…');
- let sha=null;const gr=await fetch(api,{headers:H});
+try{upShow();upSet(5,'Dosya hazırlanıyor…');set('Yükleniyor…');
+ let sha=null;upAbort=new AbortController();upSet(10,'GitHub kontrol ediliyor…');const gr=await fetch(api,{headers:H,signal:upAbort.signal});
  if(gr.ok)sha=(await gr.json()).sha;else if(gr.status!=404)throw new Error('GET '+gr.status);
  const body={message:(adm?'Admin':'Kullanıcı')+' güncellemesi v'+mv[1],content:btoa(unescape(encodeURIComponent(txt)))};
  if(sha)body.sha=sha;
- let pr=await fetch(api,{method:'PUT',headers:H,body:JSON.stringify(body)});
- if(pr.status==409){const g2=await fetch(api,{headers:H});if(g2.ok){body.sha=(await g2.json()).sha;pr=await fetch(api,{method:'PUT',headers:H,body:JSON.stringify(body)})}}
+ upSet(25,'Yükleniyor…');let pr=await xhrPut(api,H,JSON.stringify(body),p=>upSet(25+p*70,'Yükleniyor… %'+Math.round(p*100)));
+ if(pr.status==409){const g2=await fetch(api,{headers:H});if(g2.ok){body.sha=(await g2.json()).sha;pr=await xhrPut(api,H,JSON.stringify(body),()=>{})}}
  if(!pr.ok)throw new Error('PUT '+pr.status+': '+(await pr.text()).slice(0,160));
- if(adm){set('Admin uygulaması yüklendi ✓ (bir iki dakikada yayınlanır)');toast('Admin güncellendi ✓');return}
- set('Kullanıcı dosyası yüklendi, bildirim gönderiliyor…');
- const sent=await pushGist({version:mv[1],notes:notes.trim()});
+ if(adm){upSet(100,'Tamamlandı');upHide();set('Admin uygulaması yüklendi ✓ (bir iki dakikada yayınlanır)');toast('Admin güncellendi ✓');return}
+ upSet(90,'Bildirim gönderiliyor…');set('Kullanıcı dosyası yüklendi, bildirim gönderiliyor…');
+ const sent=await pushGist({version:mv[1],notes:notes.trim()});upSet(100,'Tamamlandı');upHide();
 if(sent){
   set('Yayınlandı ✓ v'+mv[1]);
   toast('Kullanıcılara bildirildi ✓');
 }else{
   set('Dosya GitHub’a yüklendi ancak bildirim gönderilemedi. Hata mesajını kontrol et.');
 }
-}catch(e){const c=String(e.message);set(/401|403/.test(c)?'Anahtar yetkisi yok: token için repo (contents) izni gerekli':'Yüklenemedi: '+c);toast('Yüklenemedi')}};
+}catch(e){upHide();const c=String(e.message);set(e.name==='AbortError'||/iptal/.test(c)?'İptal edildi':/401|403/.test(c)?'Anahtar yetkisi yok: token için repo (contents) izni gerekli':'Yüklenemedi: '+c);toast('Yüklenemedi')}};
 const adminCard=()=>{const u=M.upd||{},p=u.pub||{};return siteCard()+`<div class=card><h2>📣 Güncelleme ve Duyuru</h2><div class=mut>Sadece bu (yönetici) uygulamada görünür. Yayınladıkların kullanıcı uygulamalarında açılışta pop up olarak, uygulama açıkken Özet'in üstünde çıkar.</div>
 <div class=mut style="margin-top:10px"><b>Duyuru</b></div><textarea id=uan class=in style="width:100%;height:64px;margin-top:4px" placeholder="Duyuru metni">${E((p.ann&&p.ann.text)||'')}</textarea>
 <div class=row style="gap:8px;margin-top:6px"><button class=add onclick="publishAnn()">📢 Duyuruyu yayınla</button><button class=add onclick="clearAnn()">Kaldır</button></div>
