@@ -426,8 +426,13 @@ out.bas=grab(/ba[şs]lang[ıi][çc][^\s:]*\s*(tarihi)?\s*[:\-]?/i);
 out.bit=grab(/biti[şs][^\s:]*\s*(tarihi)?\s*[:\-]?/i);
 if(!out.bas||!out.bit){const all=[];let m;const r=dre();while((m=r.exec(norm)))all.push(iso1(m));all.sort();if(all.length>=2){out.bas=out.bas||all[0];out.bit=out.bit||all[all.length-1]}}
 const ins=['allianz','axa','anadolu','ak sigorta','aksigorta','mapfre','groupama','zurich','eureko','sompo','hdi','unico','ray sigorta','generali','neova','quick sigorta','bereket','corpus','türkiye sigorta','koç','gulf','ergo'];
-const low=norm.toLowerCase();const hit=ins.find(k=>low.includes(k));
-if(hit)out.sirket=hit.replace(/\b\w/g,c=>c.toUpperCase());
+let sn='';
+const mL=/sigorta\s*(?:şirketi|sirketi|firması|firmasi|firma)\s*[:\-]\s*([A-Za-zÇĞİÖŞÜçğıöşü.&\s]{3,40}?)(?=\s+(?:Ba[şs]lang|Biti[şs]|Poli[çc]e|Prim|Tarih|Sigorta\s*Ettiren|Sigortal)|\s\d|$)/i.exec(norm);
+if(mL)sn=mL[1].trim();
+if(!sn){const mC=/sigortac[ıi]\s*[:\-]\s*([A-Za-zÇĞİÖŞÜçğıöşü.&\s]{3,40}?)(?=\s+(?:Ba[şs]lang|Biti[şs]|Poli[çc]e|Prim|Tarih|Sigorta\s*Ettiren|Sigortal)|\s\d|$)/i.exec(norm);if(mC)sn=mC[1].trim()}
+if(!sn){const re=/sigorta/gi;let mm;while((mm=re.exec(norm))){const after=norm.slice(mm.index+7,mm.index+20).trim().toLowerCase();if(/^(ettiren|sigortal|poliçe|tarih|şirket|sirket|firma|bitiş|baslang)/.test(after))continue;const w=norm.slice(Math.max(0,mm.index-40),mm.index).trim().split(' ').filter(Boolean);const take=[];for(let k=w.length-1;k>=0&&take.length<3;k--){if(/^[A-ZÇĞİÖŞÜa-zçğıöşü&.]+$/.test(w[k])&&!/^(poliçe|tarafından|ile|ve|ve|sayın|bu)$/i.test(w[k]))take.unshift(w[k]);else break}if(take.length){sn=take.join(' ')+' Sigorta';break}}}
+if(!sn){const low=norm.toLowerCase();const hit=ins.find(k=>low.includes(k));if(hit)sn=hit.replace(/\b\w/g,c=>c.toUpperCase())}
+out.sirket=sn.replace(/\s+/g,' ').trim();
 const pm=/poli[çc]e\s*(no|numaras[ıi])\s*[:.]?\s*([A-Za-z0-9\-\/]{5,})/i.exec(norm);if(pm)out.no=pm[2];
 return out};
 const motoSigRead=async inp=>{const f=inp.files[0];if(!f)return;const msg=document.getElementById('sgMsg');const key=aiKey();if(!key){msg.textContent='Otomatik okuma için Groq veya Gemini anahtarı gerekli; bilgileri elle gir.';return}msg.textContent='Poliçe okunuyor…';
