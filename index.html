@@ -417,6 +417,7 @@ const MOTO_SIG_PROMPT='Bu sigorta poliçesinden şu alanları JSON olarak çıka
 const MOTO_GROQ_VISION='meta-llama/llama-4-scout-17b-16e-instruct';
 const motoSigPdfText=async f=>{if(!window.pdfjsLib){await new Promise((res,rej)=>{const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';sc.onload=res;sc.onerror=rej;document.head.appendChild(sc)});window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'}const pdf=await window.pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;let out='';for(let p=1;p<=Math.min(pdf.numPages,5);p++){const pg=await pdf.getPage(p);const tc=await pg.getTextContent();out+=tc.items.map(t=>t.str).join(' ')+'\n'}return out.trim()};
 const motoSigFill=x=>{const set=(id,v)=>{if(v)document.getElementById(id).value=v};set('sgS',x.sirket);set('sgB',x.bas);set('sgE',x.bit);set('sgN',x.no)};
+const tc=w=>/\./.test(w)?w.toLocaleUpperCase('tr-TR'):w.toLocaleLowerCase('tr-TR').replace(/^./,c=>c.toLocaleUpperCase('tr-TR'));
 const motoSigLocal=t=>{const out={sirket:'',bas:'',bit:'',no:''};const norm=t.replace(/\s+/g,' ');
 const toIso=(d,m,y)=>y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
 const dre=()=>/(\d{2})[.\/-](\d{2})[.\/-](\d{4})|(\d{4})-(\d{2})-(\d{2})/g;
@@ -427,8 +428,8 @@ out.bit=grab(/biti[şs][^\s:]*\s*(tarihi)?\s*[:\-]?/i);
 if(!out.bas||!out.bit){const all=[];let m;const r=dre();while((m=r.exec(norm)))all.push(iso1(m));all.sort();if(all.length>=2){out.bas=out.bas||all[0];out.bit=out.bit||all[all.length-1]}}
 const ins=['allianz','axa','anadolu','ak sigorta','aksigorta','mapfre','groupama','zurich','eureko','sompo','hdi','unico','ray sigorta','generali','neova','quick sigorta','bereket','corpus','türkiye sigorta','koç','gulf','ergo'];
 let sn='';
-const mL=/sigorta\s*(?:şirketi|sirketi|firması|firmasi|firma)\s*[:\-]\s*([A-Za-zÇĞİÖŞÜçğıöşü.&\s]{3,40}?)(?=\s+(?:Ba[şs]lang|Biti[şs]|Poli[çc]e|Prim|Tarih|Sigorta\s*Ettiren|Sigortal)|\s\d|$)/i.exec(norm);
-if(mL)sn=mL[1].trim();
+const mL=/sigorta\s*şirketi\s*[:\-]?\s*([A-ZÇĞİÖŞÜa-zçğıöşü.&\s]{3,80}?)(?=\s+(?:Acente|Poli[çc]e|Yenileme|Ba[şs]lang|Biti[şs]|Plaka|Tramer)|\s\d|$)/i.exec(norm);
+if(mL)sn=mL[1].trim().split(/\s+/).map(tc).join(' ');
 if(!sn){const mC=/sigortac[ıi]\s*[:\-]\s*([A-Za-zÇĞİÖŞÜçğıöşü.&\s]{3,40}?)(?=\s+(?:Ba[şs]lang|Biti[şs]|Poli[çc]e|Prim|Tarih|Sigorta\s*Ettiren|Sigortal)|\s\d|$)/i.exec(norm);if(mC)sn=mC[1].trim()}
 if(!sn){const re=/sigorta/gi;let mm;while((mm=re.exec(norm))){const after=norm.slice(mm.index+7,mm.index+20).trim().toLowerCase();if(/^(ettiren|sigortal|poliçe|tarih|şirket|sirket|firma|bitiş|baslang)/.test(after))continue;const w=norm.slice(Math.max(0,mm.index-40),mm.index).trim().split(' ').filter(Boolean);const take=[];for(let k=w.length-1;k>=0&&take.length<3;k--){if(/^[A-ZÇĞİÖŞÜa-zçğıöşü&.]+$/.test(w[k])&&!/^(poliçe|tarafından|ile|ve|ve|sayın|bu)$/i.test(w[k]))take.unshift(w[k]);else break}if(take.length){sn=take.join(' ')+' Sigorta';break}}}
 if(!sn){const low=norm.toLowerCase();const hit=ins.find(k=>low.includes(k));if(hit)sn=hit.replace(/\b\w/g,c=>c.toUpperCase())}
