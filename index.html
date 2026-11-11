@@ -717,7 +717,7 @@ function akSetBody(){
   ${adm?'<button class=ak-r2 onclick="openAdminUsers()"><span>👥 Kullanıcılar</span></button><button class=ak-r2 onclick="goSet(\'Uygulamayı Güncelle\')"><span>🚀 Uygulamayı güncelle</span></button>':''}
   <button class=ak-r2 onclick="clr()"><span style="color:var(--bad)">Tüm verileri temizle</span></button>
  </div></div>`}
-const KEY='butce_v3';const VER='6.70';
+const KEY='butce_v3';const VER='6.71';
 try{['butce_pre_update','butce_pre_ver','butce_auto_prev','butce_ver'].forEach(k=>localStorage.removeItem(k))}catch(e){}
 let CATC=['#1f6f5c','#c9752f','#7d5ba6','#b4402f','#2f6fb4','#a3852f','#5fae8c','#c94f7c','#4f8fc9','#8c6f4f'];
 let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
@@ -1894,6 +1894,8 @@ const upShow=()=>{let b=document.getElementById('upbar');if(!b){const sm=documen
 const upSet=(p,t)=>{const f=document.getElementById('upfill'),x=document.getElementById('uptx');if(f)f.style.width=Math.max(0,Math.min(100,p))+'%';if(x)x.textContent=t||''};
 const upHide=()=>{const b=document.getElementById('upbar');if(b)b.style.display='none'};
 const xhrPut=(url,headers,body,onp)=>new Promise((res,rej)=>{const x=new XMLHttpRequest();upAbort={abort:()=>x.abort()};x.open('PUT',url);for(const k in headers)x.setRequestHeader(k,headers[k]);x.upload.onprogress=e=>{if(e.lengthComputable)onp(e.loaded/e.total)};x.onload=()=>res({status:x.status,ok:x.status>=200&&x.status<300,text:()=>Promise.resolve(x.responseText)});x.onerror=()=>rej(new Error('ağ hatası'));x.onabort=()=>rej(new Error('iptal'));x.send(body)});
+const SW_TPL="// Servis çalışanı: sayfa her zaman sunucudan en güncel haliyle gelir,\n// internet yoksa son kaydedilen kopya kullanılır.\nconst CACHE = 'butce-__VER__';\n\nself.addEventListener('install', () => self.skipWaiting());\n\nself.addEventListener('activate', e => {\n  e.waitUntil(\n    caches.keys()\n      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))\n      .then(() => self.clients.claim())\n  );\n});\n\nself.addEventListener('fetch', e => {\n  const req = e.request;\n  if (req.method !== 'GET') return;\n  const url = new URL(req.url);\n  if (url.origin !== location.origin) return;\n\n  e.respondWith(\n    fetch(req, { cache: 'no-store' })\n      .then(res => {\n        if (res.ok) {\n          const copy = res.clone();\n          caches.open(CACHE).then(c => c.put(req, copy));\n        }\n        return res;\n      })\n      .catch(() => caches.match(req).then(m => m || caches.match('index.html')))\n  );\n});\n";
+const swPush=async(repo,H,ver)=>{try{const url='https://api.github.com/repos/'+repo+'/contents/sw.js';let sha=null;const g=await fetch(url,{headers:H});if(g.ok)sha=(await g.json()).sha;const txt=SW_TPL.replace('__VER__',ver);const body={message:'sw v'+ver,content:btoa(unescape(encodeURIComponent(txt)))};if(sha)body.sha=sha;const p=await fetch(url,{method:'PUT',headers:H,body:JSON.stringify(body)});return p.ok}catch(e){return false}};
 const siteUpload=async(inp,who)=>{const f=inp.files&&inp.files[0];inp.value='';if(!f)return;
 const g=id=>((document.getElementById(id)||{}).value||'').trim();
 const adm=who=='admin';
@@ -1917,6 +1919,7 @@ try{upShow();upSet(5,'Dosya hazırlanıyor…');set('Yükleniyor…');
  upSet(25,'Yükleniyor…');let pr=await xhrPut(api,H,JSON.stringify(body),p=>upSet(25+p*70,'Yükleniyor… %'+Math.round(p*100)));
  if(pr.status==409){const g2=await fetch(api,{headers:H});if(g2.ok){body.sha=(await g2.json()).sha;pr=await xhrPut(api,H,JSON.stringify(body),()=>{})}}
  if(!pr.ok)throw new Error('PUT '+pr.status+': '+(await pr.text()).slice(0,160));
+ upSet(94,'Servis çalışanı güncelleniyor…');const swOk=await swPush(repo,H,mv[1]);
  if(adm){upSet(100,'Tamamlandı');upHide();set('Admin uygulaması yüklendi ✓ (bir iki dakikada yayınlanır)');toast('Admin güncellendi ✓');return}
  upSet(90,'Bildirim gönderiliyor…');set('Kullanıcı dosyası yüklendi, bildirim gönderiliyor…');
  const sent=await pushGist({version:mv[1],notes:notes.trim()});upSet(100,'Tamamlandı');upHide();
