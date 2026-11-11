@@ -1898,7 +1898,7 @@ if(!/^[\w.-]+\/[\w.-]+$/.test(repo))return toast('Repo adı kullanici/repo-adi b
 const txt=await f.text();
 const isAdm=/const ADMIN=true/.test(txt);
 if(isAdm!==adm)return toast(adm?'Bu dosya admin sürümü değil':'Bu dosya kullanıcı sürümü değil');
-const mv=txt.match(/const VER='([\d.]+)'/);if(!mv)return toast('Sürüm numarası bulunamadı');
+const mv=txt.match(/VER\s*=\s*['\"]([\d.]+)['\"]/);if(!mv)return toast('Sürüm numarası bulunamadı');
 M.upd=M.upd||{};if(adm){M.upd.repo=repo;M.upd.path=path}else{M.upd.urepo=repo;M.upd.upath=path}sm();
 const api='https://api.github.com/repos/'+repo+'/contents/'+path.split('/').map(encodeURIComponent).join('/');
 const utk=((document.getElementById('utok')||{}).value||'').trim();if(utk){M.upd=M.upd||{};M.upd.tok=utk;sm()}
@@ -2760,7 +2760,7 @@ const notifyUsersVersion=async()=>{
   const j=await r.json();
   const txt=decodeURIComponent(escape(atob(j.content.replace(/\n/g,''))));
   if(/const ADMIN=true/.test(txt))throw new Error('Bu dosya kullanıcı uygulaması değil');
-  const mv=txt.match(/const VER='([\d.]+)'/);
+  const mv=txt.match(/VER\s*=\s*['\"]([\d.]+)['\"]/);
   if(!mv)throw new Error('Dosyada sürüm bulunamadı');
   M.upd=M.upd||{};M.upd.urepo=repo;M.upd.upath=path;sm();
   const ok=await pushGist({version:mv[1],notes:notes.trim()});
