@@ -454,28 +454,45 @@ const pdfLines=async file=>{await loadScript(PDF_JS+'pdf.min.js',()=>!!window.pd
  for(let i=1;i<=doc.numPages;i++){const c=await (await doc.getPage(i)).getTextContent();let line='',lastY=null;c.items.forEach(it=>{const y=Math.round(it.transform[5]);if(lastY!==null&&Math.abs(y-lastY)>2){out.push(line.trim());line=''}line+=it.str+' ';lastY=y});out.push(line.trim())}
  return out.filter(Boolean)};
 const OCR_JS='https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/5.1.1/tesseract.min.js';
-const ocrCrop=im=>{const w=im.naturalWidth,h=im.naturalHeight;const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.drawImage(im,0,0);const d=x.getImageData(0,0,w,h).data;
- let minX=w,minY=h,maxX=0,maxY=0;for(let y=0;y<h;y+=2)for(let xx=0;xx<w;xx+=2){const i=(y*w+xx)*4;const l=0.3*d[i]+0.59*d[i+1]+0.11*d[i+2];if(l<150){if(xx<minX)minX=xx;if(xx>maxX)maxX=xx;if(y<minY)minY=y;if(y>maxY)maxY=y}}
- if(maxX<=minX||maxY<=minY||(maxX-minX)<w*0.3||(maxY-minY)<h*0.3)return {sx:0,sy:0,sw:w,sh:h};
- const m=12;const sx=Math.max(0,minX-m),sy=Math.max(0,minY-m);return {sx,sy,sw:Math.min(w-sx,maxX-minX+2*m),sh:Math.min(h-sy,maxY-minY+2*m)}};
-const ocrCanvas=(im,cr,scale,binar)=>{const c=document.createElement('canvas');c.width=Math.round(cr.sw*scale);c.height=Math.round(cr.sh*scale);const x=c.getContext('2d');x.imageSmoothingQuality='high';x.filter='grayscale(1) contrast(1.3)';x.drawImage(im,cr.sx,cr.sy,cr.sw,cr.sh,0,0,c.width,c.height);
+const rowBands=im=>{const w=im.naturalWidth,h=im.naturalHeight;const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);
+ const d=x.getImageData(0,0,w,h).data;const rs=new Array(h).fill(0);
+ for(let y=0;y<h;y++){let n=0;const o=y*w*4;for(let xx=0;xx<w;xx++){const i=o+xx*4;const l=0.3*d[i]+0.59*d[i+1]+0.11*d[i+2];if(l<140)n++}rs[y]=n}
+ const mxv=Math.max(...rs);if(mxv<w*0.3)return null;
+ const ys=[];rs.forEach((v,y)=>{if(v>0.5*mxv)ys.push(y)});
+ const groups=[];ys.forEach(y=>{const g=groups[groups.length-1];if(g&&y-g[g.length-1]<=2)g.push(y);else groups.push([y])});
+ const pos=groups.map(g=>Math.round(g.reduce((a,b)=>a+b,0)/g.length));
+ if(pos.length<4)return null;
+ const bands=[];for(let i=0;i<pos.length-1;i++){const hgt=pos[i+1]-pos[i];if(hgt>12&&hgt<=120)bands.push({y0:pos[i]+2,y1:pos[i+1]-1,x0:0,x1:w})}
+ return bands};
+const bandCanvas=(im,b,scale)=>{const pad=12;const W=Math.round((b.x1-b.x0)*scale),H=Math.round((b.y1-b.y0)*scale);const c=document.createElement('canvas');c.width=W+2*pad;c.height=H+2*pad;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.imageSmoothingQuality='high';x.filter='grayscale(1) contrast(1.3)';x.drawImage(im,b.x0,b.y0,b.x1-b.x0,b.y1-b.y0,pad,pad,W,H);return c};
+const pageCanvas=(im,scale,binar)=>{const c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*scale);c.height=Math.round(im.naturalHeight*scale);const x=c.getContext('2d');x.imageSmoothingQuality='high';x.filter='grayscale(1) contrast(1.3)';x.drawImage(im,0,0,c.width,c.height);
  if(binar){x.filter='none';const id=x.getImageData(0,0,c.width,c.height),d=id.data;let s=0;for(let i=0;i<d.length;i+=4)s+=d[i];const t=(s/(d.length/4))*0.85;for(let i=0;i<d.length;i+=4){const v=d[i]<t?0:255;d[i]=d[i+1]=d[i+2]=v}x.putImageData(id,0,0)}
  return c};
 const imgLines=async file=>{await loadScript(OCR_JS,()=>!!window.Tesseract);
  const url=URL.createObjectURL(file);const im=new Image();
  await new Promise((res,rej)=>{im.onload=res;im.onerror=()=>rej(new Error('Fotoğraf açılamadı'));im.src=url});
  URL.revokeObjectURL(url);
- const cr=ocrCrop(im);
- const variants=[[2,false,'6'],[3,false,'6'],[2,true,'6'],[2,false,'4']];
  const w=await window.Tesseract.createWorker('tur+eng');
  let best={lines:[],score:-1};
- try{for(const [sc,bn,psm] of variants){
-   await w.setParameters({tessedit_pageseg_mode:psm});
-   const r=await w.recognize(ocrCanvas(im,cr,sc,bn));
-   const lines=r.data.text.split('\n').map(x=>x.trim()).filter(Boolean);
-   const score=pdfParse(lines).rows.length;
-   if(score>best.score)best={lines,score};
- }}finally{await w.terminate()}
+ const consider=lines=>{const score=pdfParse(lines).rows.length;if(score>best.score)best={lines,score}};
+ try{
+   // 1) Tablo satırları: yatay çizgilerle bölünüp her satır ayrı okunur
+   const bands=rowBands(im);
+   if(bands&&bands.length>=4){
+     await w.setParameters({tessedit_pageseg_mode:'7'});
+     const out=[];
+     for(const b of bands){const r=await w.recognize(bandCanvas(im,b,3));const t=(r.data.text||'').trim();if(t)out.push(t)}
+     consider(out);
+   }
+   // 2) Yedek: tüm sayfa, birkaç ayarla denenir
+   if(best.score<4){
+     for(const [sc,bn,psm] of [[2,false,'6'],[3,false,'6'],[2,true,'6'],[2,false,'4']]){
+       await w.setParameters({tessedit_pageseg_mode:psm});
+       const r=await w.recognize(pageCanvas(im,sc,bn));
+       consider(r.data.text.split('\n').map(x=>x.trim()).filter(Boolean));
+     }
+   }
+ }finally{await w.terminate()}
  return best.lines};
 const docLines=file=>(/pdf/i.test(file.type)||/\.pdf$/i.test(file.name))?pdfLines(file):imgLines(file);
 
@@ -489,7 +506,7 @@ const dIso=m=>`${m[3]}-${m[2]}-${m[1]}`;
 const pad2=n=>String(n).padStart(2,'0');
 const addMonths=(s,k)=>{const [y,mo,d]=s.split('-').map(Number);const t=new Date(y,mo-1+k,d);return `${t.getFullYear()}-${pad2(t.getMonth()+1)}-${pad2(t.getDate())}`};
 const fmtD=s=>s?new Date(s+'T00:00').toLocaleDateString('tr-TR',{day:'numeric',month:'short',year:'numeric'}):'-';
-const headerCols=h=>{const w=h.trim().split(/\s+/);const labels=[];let sira=false;
+const headerCols=h=>{const w=h.replace(/[|]/g,' ').trim().split(/\s+/).filter(x=>/[A-Za-zÇĞİÖŞÜçğıöşü]/.test(x));const labels=[];let sira=false;
  for(let i=0;i<w.length;i++){const x=w[i].toLocaleLowerCase('tr-TR');if(x==='sıra'||x==='sira'){sira=true;continue}
   if(x==='tarih')continue;if(x==='ödeme'&&/^tarihi$/i.test(w[i+1]||'')){i++;continue}labels.push(x)}
  const t=labels.findIndex(x=>/tak[sş]it/.test(x)),a=labels.findIndex(x=>/anapara/.test(x));
@@ -865,7 +882,7 @@ function akSetBody(){
   ${adm?'<button class=ak-r2 onclick="openAdminUsers()"><span>👥 Kullanıcılar</span></button><button class=ak-r2 onclick="goSet(\'Uygulamayı Güncelle\')"><span>🚀 Uygulamayı güncelle</span></button>':''}
   <button class=ak-r2 onclick="clr()"><span style="color:var(--bad)">Tüm verileri temizle</span></button>
  </div></div>`}
-const KEY='butce_v3';const VER='6.80';
+const KEY='butce_v3';const VER='6.82';
 try{['butce_pre_update','butce_pre_ver','butce_auto_prev','butce_ver'].forEach(k=>localStorage.removeItem(k))}catch(e){}
 let CATC=['#1f6f5c','#c9752f','#7d5ba6','#b4402f','#2f6fb4','#a3852f','#5fae8c','#c94f7c','#4f8fc9','#8c6f4f'];
 let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
