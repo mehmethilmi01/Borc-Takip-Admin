@@ -1404,7 +1404,7 @@ function akSetBody(){
   ${adm?'<button class=ak-r2 onclick="openAdminUsers()"><span>👥 Kullanıcılar</span></button>':''}
   <button class=ak-r2 onclick="clr()"><span style="color:var(--bad)">Tüm verileri temizle</span></button>
  </div></div>`}
-const KEY='butce_v3';const VER='7.87';const NUM=s=>{let t=String(s==null?'':s).trim().replace(/\s/g,'');if(t.includes(','))t=t.replace(/\./g,'').replace(',','.');const v=parseFloat(t);return isFinite(v)?v:0};
+const KEY='butce_v3';const VER='7.89';const NUM=s=>{let t=String(s==null?'':s).trim().replace(/\s/g,'');if(t.includes(','))t=t.replace(/\./g,'').replace(',','.');const v=parseFloat(t);return isFinite(v)?v:0};
 try{['butce_pre_update','butce_pre_ver','butce_auto_prev','butce_ver'].forEach(k=>localStorage.removeItem(k))}catch(e){}
 let CATC=['#1f6f5c','#c9752f','#7d5ba6','#b4402f','#2f6fb4','#a3852f','#5fae8c','#c94f7c','#4f8fc9','#8c6f4f'];
 let S; try{S=JSON.parse(localStorage.getItem(KEY))}catch(e){}
@@ -2415,7 +2415,7 @@ const ptSet=(d,txt)=>{const e=ptEl();if(!e)return;e.textContent=txt||'';e.style.
 const PT_THR=100;
 const ptScrolled=el=>{for(let n=el;n&&n!==document.body;n=n.parentElement){if(!n||n.nodeType!==1)continue;const cs=getComputedStyle(n);if(/auto|scroll/.test(cs.overflowY)&&n.scrollTop>0)return true}return false};
 const ptColor=c=>{const e=ptEl();if(e)e.style.color=c||''};
-document.addEventListener('touchmove',e=>{const w=document.getElementById('akSW');if(w&&w.classList.contains('open')&&!(e.target&&e.target.closest&&e.target.closest('.sheet')))e.preventDefault()},{passive:false});
+document.addEventListener('touchmove',e=>{const w=document.getElementById('akSW');if(w&&w.classList.contains('open')&&!(e.target&&e.target.closest&&(e.target.closest('.sheet')||e.target.closest('#admusovl'))))e.preventDefault()},{passive:false});
 document.addEventListener('touchstart',e=>{ptY=null;ptD=0;ptColor('');
  if(window.scrollY<=0&&!document.documentElement.classList.contains('lk')&&!ptScrolled(e.target))ptY=e.touches[0].clientY},{passive:true});
 document.addEventListener('touchmove',e=>{if(ptY===null)return;
@@ -3066,7 +3066,7 @@ setTimeout(()=>cloudInit().catch(e=>cloudMsg('Bulut bağlantısı kurulamadı: '
 window.IS_ADMIN=false;window.ADU=[];
 const adminCheck=async()=>{try{const r=await cloudApi('admin/me');window.IS_ADMIN=!!r.is_admin}catch(e){window.IS_ADMIN=false}};
 const adminUsersCard=()=>`<div class=card><h2>👥 Kullanıcılar</h2><div class=mut>Hesapları listele, yeni hesap aç, sil veya şifresini sıfırla. Yedek içerikleri şifreli olduğu için görüntülenmez; yalnızca son yedek tarihi görünür.</div><button class=add style="margin-top:8px" onclick="openAdminUsers()">Kullanıcıları yönet</button></div>`;
-const admOv=document.createElement('div');admOv.id='admusovl';admOv.style.cssText='display:none;position:fixed;inset:0;background:#0008;z-index:12;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y';document.body.appendChild(admOv);const admCss=document.createElement('style');admCss.textContent='html.nv #admusovl{align-items:flex-start!important}#admusovl .card{margin:0 auto 40px!important}';document.head.appendChild(admCss);
+const admOv=document.createElement('div');admOv.id='admusovl';admOv.style.cssText='display:none;position:fixed;inset:0;background:#0008;z-index:70;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y';document.body.appendChild(admOv);const admCss=document.createElement('style');admCss.textContent='html.nv #admusovl{align-items:flex-start!important;z-index:70!important}#admusovl{z-index:70}#admusovl .card{margin:0 auto 40px!important}';document.head.appendChild(admCss);
 const admRow=u=>{const bk=u.backup_at?new Date(u.backup_at).toLocaleString('tr-TR',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})+' · '+Math.round((u.size_bytes||0)/1024)+' KB':'Yedek yok';
  return `<div class=card style="padding:10px 12px;margin-top:8px"><div><b>${E(u.username)}</b>${u.is_admin?' <span class=mut>· yönetici</span>':''}<div class=mut style="font-size:12px">Kayıt: ${new Date(u.created_at).toLocaleDateString('tr-TR')} · Son yedek: ${bk}</div></div>${u.is_admin?'':`<div class=row style="gap:6px;margin-top:8px;justify-content:flex-start"><button class=add style="padding:6px 10px" onclick="admReset('${u.id}','${Q(u.username)}')">Şifre sıfırla</button><button class=add style="padding:6px 10px;color:var(--bad)" onclick="admDel('${u.id}','${Q(u.username)}')">Sil</button></div>`}</div>`};
 const admRender=msg=>{document.getElementById('admusovl').innerHTML=`<div class=card style="max-width:520px;margin:0 auto;width:94%"><h2 style="margin-bottom:4px">👥 Kullanıcılar</h2><div class=mut>${window.ADU.length} hesap</div>
@@ -3135,7 +3135,7 @@ const dLegend=(entries,tot,onc)=>entries.map((e,i)=>`<div class=legrow ${onc?`on
 
 
 /* ===== Arama (ana sayfadan açılır) ===== */
-const srOv=document.createElement('div');srOv.id='srchovl';srOv.style.cssText='display:none;position:fixed;inset:0;background:#0008;z-index:12;align-items:flex-start;justify-content:center;padding:20px;padding-top:calc(20px + env(safe-area-inset-top,0px))';document.body.appendChild(srOv);
+const srOv=document.createElement('div');srOv.id='srchovl';srOv.style.cssText='display:none;position:fixed;inset:0;background:#0008;z-index:70;align-items:flex-start;justify-content:center;padding:20px;padding-top:calc(20px + env(safe-area-inset-top,0px))';document.body.appendChild(srOv);
 function openSearch(){const o=document.getElementById('srchovl');
  o.innerHTML=`<div class=card style="max-width:440px;margin:0;width:100%;max-height:84vh;overflow-y:auto"><h2>Ara</h2><input id=sq class=in placeholder="Harcama, ödeme, borç, belge…" value="${E(SQ)}" oninput="SQ=this.value;renderSearch()" style="width:100%;margin-top:8px"><div id=sres></div></div>`;
  o.style.display='flex';
